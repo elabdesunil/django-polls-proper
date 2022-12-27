@@ -10,6 +10,14 @@
       - [start project in inside another folder in the dictory](#start-project-in-inside-another-folder-in-the-dictory)
         - [What are python `packages`?](#what-are-python-packages)
       - [Create the Polls App](#create-the-polls-app)
+        - [Write the first view](#write-the-first-view)
+          - [`views.py`](#viewspy)
+        - [`urls.py`](#urlspy)
+        - [About `path()` like `path(route, view, [kwargs, name])`](#about-path-like-pathroute-view-kwargs-name)
+          - [`route`](#route)
+          - [`view`](#view)
+          - [`kwargs`](#kwargs)
+          - [`name`](#name)
 
 
 ## Setup
@@ -86,11 +94,64 @@ Go to diretory containing `manage.py`
 python manage.py startapp polls
 ```
 
+##### Write the first view
+
+
+###### `views.py`
 ```python
 # polls/views.py
 
-from django.htpp import HttpResponse
+from django.http import HttpResponse
 
 def index(request):
   return HttpResponse("Hello, world, You're at the index of poll")
 ```
+to map the view, we need to map it to a URL - and for this we need a URLconf
+
+##### `urls.py`
+```py
+# polls/urls.py
+
+from django.urls import path
+from . import views
+
+urlpatterns = [
+  path('', views.index, name='index')
+]
+```
+import this urls file in `mysite/urls.py`
+```py
+# mysite/urls.py
+
+from django.contrib import admin
+from django.urls import include, path
+
+urlpatterns = [
+  path('polls/', include("polls.urls"))
+  path("admin/", admin.site.urls), 
+]
+```
+`include()` function allows referencing other URLconfs
+  - when to use it? always use it when including other URL patterns. 
+    - exept for `admin.site.urls`
+
+To test visit: http://localhost:8000/polls/
+
+##### About `path()` like `path(route, view, [kwargs, name])`
+
+The `path()` function is passed four arguments, two required: `route` and `view` and two optional: `kwargs`, `name`.
+
+###### `route` 
+- route is the string that contains a URL pattern
+- starts from the first patter in the urlpatters and works down the list
+###### `view`
+- specifies the view function with an `HttpRequest` object as the first argument
+- and any 'captured' values from the route.
+
+###### `kwargs`
+- arbitrary keyword arguments can be passed in a dictionary to the target view.
+
+###### `name`
+- naming lets us refer to the URL elsewhere in Django, 
+  - especially necessary for template files
+- by touching one singe file, global changes to URL patters can be made
