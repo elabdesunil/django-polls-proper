@@ -137,7 +137,7 @@ def index(request):
 to map the view, we need to map it to a URL - and for this we need a URLconf
 
 ##### `urls.py`
-```py
+```python
 # polls/urls.py
 
 from django.urls import path
@@ -148,7 +148,7 @@ urlpatterns = [
 ]
 ```
 import this urls file in `mysite/urls.py`
-```py
+```python
 # mysite/urls.py
 
 from django.contrib import admin
@@ -232,7 +232,7 @@ python manage.py migrate
 
 #### Add models `Question` and `Choice`
 
-```py
+```python
 # polls/models.py
 
 from django.db import models
@@ -272,7 +272,7 @@ after the completion of the last [section](#add-models-question-and-choice), we 
 Note: django apps are pluggable which means: it can be used in multiple projects and can be distributed 
 
 include the app in the project by adding to the `INSTALLED_APPS`:
-```py
+```python
 # mysite/settings.py
 
 INSTALLED_APPS = [
@@ -401,7 +401,7 @@ datetime.datetime(2012, 2, 26, 13, 0, 0, 775217, tzinfo=datetime.timezone.utc)
 ##### Info: Add `__Str__()` to all models to replace Django's automatically-generated admin
 
 changes made:
-```py
+```python
 # polls/models.py
 
 from django.db import models
@@ -419,7 +419,7 @@ class Choice(models.Model):
 
 ##### add a custom method `was_published_recently` to model `Question`
 
-```py
+```python
 # polls/models.py
 
 import datetime
@@ -437,7 +437,7 @@ class Question(models.Model):
 ```
 
 run `python manage.py shell`
-```py
+```python
 
 >>> from polls.models import Choice, Question
 
@@ -551,7 +551,7 @@ After setting up the adming user, and accessing it the `poll` will not have disp
 
 #### Make the poll app modifiable in admin
 
-```py
+```python
 # polls/admin.py
 
 from django.contrib import admin
@@ -594,7 +594,7 @@ A django url patter looks like `/newsarchive/<year>/<month>/`
 #### Writing more views
 
 
-```py
+```python
 # polls/views.py
 
 def detail(request, question_id):
@@ -612,7 +612,7 @@ def vote(request, question_id):
 
 connect the views
 
-```py
+```python
 # polls/urls.py
 
 from django.urls import path
