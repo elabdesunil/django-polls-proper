@@ -43,6 +43,9 @@
       - [Make the poll app modifiable in admin](#make-the-poll-app-modifiable-in-admin)
         - [Info: To make `Question` model modifiable in django admin add to `polls/admin.py` \`admin.site.register(Questions) after necessary imports](#info-to-make-question-model-modifiable-in-django-admin-add-to-pollsadminpy-adminsiteregisterquestions-after-necessary-imports)
       - [Some notes on Djnago Admin dashboard](#some-notes-on-djnago-admin-dashboard)
+    - [Views](#views)
+      - [Writing more views](#writing-more-views)
+      - [How does this requesting work?](#how-does-this-requesting-work)
 
 
 ## [Part 1] Setup
@@ -567,3 +570,75 @@ admin.site.register(Question)
   - Dates get a "Today" shortcut and calendar popup
   - times get a "Now" shortcut and a convenient poput that lists commonly entered times
 
+### Views
+A view is a "type" of web page in your Django application that generally serves as specific functions and has a specific template.
+
+A typical blog application could have:
+- 1. Blog homepage - displays the latest few entries
+- 2. Entry "detail" page - permalink page for a single entry
+- 3. Year-based archive page - displays all months with entries in the given year
+- 4. Month-based archive page - displays all days with entries in the given month
+- 5. Day-based archive page - displays all entries in a given day
+- 6. Comment action - handles posting comments to a given entry
+
+Features that will be implemented in our app:
+- 1. Question "index" page
+- 2. Question "detail" page
+- 3. Question "results" page
+- 4. Vote action
+
+A django url patter looks like `/newsarchive/<year>/<month>/`
+- `URLconf`  maps URL patterns to views
+
+
+#### Writing more views
+
+
+```py
+# polls/views.py
+
+def detail(request, question_id):
+  return HttpResponse("Your're looking at question %s." % question_id)
+
+def results(request, question_id):
+  response = "You're looking at the results of question %s."
+  return HttpResponse(response % question_id)
+
+
+def vote(request, question_id):
+  return HttpResponse("You're voting on question %s." % question_id)
+
+```
+
+connect the views
+
+```py
+# polls/urls.py
+
+from django.urls import path
+from . import views
+
+urlpatterns = [
+  # ex: /polls/
+  path('', views.index, name='index'),
+
+  # ex: /polls/5/
+  path('<int:question_id>/', views.detail, name="detail"),
+
+  # ex: /polls/5/results/
+  path('<int:question_id>/results/', views.results, name="results"),
+
+  # ex: /polls/5/vote/
+  path('<int:question_id>/vote/', views.vote, name='vote')
+]
+```
+
+#### How does this requesting work?
+
+- when we visit - say, `polls/1/`, Django will load mysite.urls that is pointed by the ROOT_URLCONF setting
+- it finds `urlpatterns`, and traverse through it to find
+  - `polls/`, which gets stripped off
+  - remaining `1/` is sent to the `polls.urls` URLconf for further processing
+- `<int:question_id>/` is found, which calls detail()
+  - it looks like:
+    `detail(request=<HttpRequest object>, question_id=34)`
