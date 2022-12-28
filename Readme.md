@@ -43,9 +43,24 @@
       - [Make the poll app modifiable in admin](#make-the-poll-app-modifiable-in-admin)
         - [Info: To make `Question` model modifiable in django admin add to `polls/admin.py` \`admin.site.register(Questions) after necessary imports](#info-to-make-question-model-modifiable-in-django-admin-add-to-pollsadminpy-adminsiteregisterquestions-after-necessary-imports)
       - [Some notes on Djnago Admin dashboard](#some-notes-on-djnago-admin-dashboard)
-    - [Views](#views)
+  - [\[Part 2\] Views](#part-2-views)
       - [Writing more views](#writing-more-views)
       - [How does this requesting work?](#how-does-this-requesting-work)
+      - [The Proper View](#the-proper-view)
+        - [Each view is responsible for two things: `HttpResponse` \& `Http404`](#each-view-is-responsible-for-two-things-httpresponse--http404)
+        - [Range of choices offered by the view:](#range-of-choices-offered-by-the-view)
+        - [Add templates to `polls`](#add-templates-to-polls)
+        - [Info: Here is the directory `DjangoTemplates` wants: `polls/templates/polls/index.html`. to access just do `polls/index.html`. \[important\]](#info-here-is-the-directory-djangotemplates-wants-pollstemplatespollsindexhtml-to-access-just-do-pollsindexhtml-important)
+        - [Info: Instead of using `django.template.render`, we can use use `django.shortcuts.render` to render the template](#info-instead-of-using-djangotemplaterender-we-can-use-use-djangoshortcutsrender-to-render-the-template)
+        - [Info: `render()` syntax: `render(request, template_file, context)`](#info-render-syntax-renderrequest-template_file-context)
+      - [Raising a 404 error](#raising-a-404-error)
+        - [Info: to manually put an error message, use `Http404`](#info-to-manually-put-an-error-message-use-http404)
+        - [Info: this shortcut function `get_objects_or_404` can get or raise error for us](#info-this-shortcut-function-get_objects_or_404-can-get-or-raise-error-for-us)
+      - [Remove hard coded urls](#remove-hard-coded-urls)
+        - [Info: url should look like: `{% url 'detail' question.id %}`, where is 'detail' is the name passed to `path()` in `polls.urls`](#info-url-should-look-like--url-detail-questionid--where-is-detail-is-the-name-passed-to-path-in-pollsurls)
+      - [How to change url of polls `detail` view?](#how-to-change-url-of-polls-detail-view)
+    - [Namespacing URL names](#namespacing-url-names)
+        - [Info: to avoid confusion: set `app_name` (for ex. `poll`) in `polls/urls.py` and access by `{% url 'polls:detail' question.id %}` in `polls/index.html`](#info-to-avoid-confusion-set-app_name-for-ex-poll-in-pollsurlspy-and-access-by--url-pollsdetail-questionid--in-pollsindexhtml)
 
 
 ## [Part 1] Setup
@@ -570,7 +585,7 @@ admin.site.register(Question)
   - Dates get a "Today" shortcut and calendar popup
   - times get a "Now" shortcut and a convenient poput that lists commonly entered times
 
-### Views
+## [Part 2] Views
 A view is a "type" of web page in your Django application that generally serves as specific functions and has a specific template.
 
 A typical blog application could have:
@@ -641,7 +656,186 @@ urlpatterns = [
   - remaining `1/` is sent to the `polls.urls` URLconf for further processing
 - `<int:question_id>/` is found, which calls detail()
   - it looks like:
-    `detail(request=<HttpRequest object>, question_id=34)`
+    `detail(request=<HttpRequest object>, question_id=1)`
 
 
 New github feature `Ctrl+shift+k` to pull of command pallet, switch organization and search
+
+
+#### The Proper View
+
+##### Each view is responsible for two things: `HttpResponse` & `Http404`
+1. Return an HttpResponse object containing the content for the requested page
+2. Raise an exception such as Http404
+These are the only two things django requires view to create.
+
+##### Range of choices offered by the view:
+1. Abilty to access database or not
+2. Template system from Django itself or from a third-party or not
+3. Generate a PDF file, output XML, create a ZIP file on the fly or not
+
+```python
+# polls/views.py
+
+from django.http import HttpResponse
+from .models import Question
+
+def index(request):
+  latest_question_list = Question.objects.order_by('-pub_date')[:5]
+  output = ', '.join([q.question_text for q in latest_question_list])
+  return HttpResponse(output)
+```
+
+##### Add templates to `polls`
+
+- how the templates are loaded, is determined by `TEMPLATES`.
+- `DjangoTemplates` backend accesses all `APP_DIRS` to look for templates.
+  - By convention, `DjangoTemplates` looks for a `templates` subdirectory in each of the `INSTALLED_APPS`
+
+##### Info: Here is the directory `DjangoTemplates` wants: `polls/templates/polls/index.html`. to access just do `polls/index.html`. [important]
+
+```html
+<!--polls/templates/polls/index.html-->
+{% if latest_question_list %}
+  <ul>
+    {% for question in latest_question_list %}
+    <li><a href="/polls/{{ question.id }}/" >
+      {{ question.question_text }}
+    </a></li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p>No polls are available</p>
+{% endif %}
+```
+Add the template to `views.py`
+```python
+from django.http import HttpResponse
+from django.template import loader
+
+from .models import Question
+
+def index(request):
+  latest_question_list = Question.objects.order_by('-pub_date')[:5]
+  template = loader.get_template("polls/index.html")
+  context = {
+    "latest_question_list": latest_question_list,
+  }
+  return HttpResponse(template.render(context, request))
+```
+
+##### Info: Instead of using `django.template.render`, we can use use `django.shortcuts.render` to render the template
+##### Info: `render()` syntax: `render(request, template_file, context)`
+The shortcut exists because this is very common.
+Here's how:
+```python
+# polls/views.py
+
+from django.shortcuts import render
+from .models import Question
+
+def index(request):
+  latest_question_list = Question.objects.order_by('-pub_date')[:5]
+  context = {'latest_question_list': latest_question_list}
+  return render (request, 'polls/index.html', context)
+```
+
+#### Raising a 404 error
+
+```python
+# polls/views.py
+
+# import ...
+from django.http import Http404
+# ...
+def detail(request, question_id):
+  try:
+    question = Question.objects.get(pk=question_id)
+  except Question.DoesNotExist:
+    raise Http404("Question does not exist")
+  return render(request, "poll/detail.html", {"question": question})
+```
+temporary put the following in templates
+```html
+<!--polls/templates/polls/detail.html-->
+{{ question }}
+```
+##### Info: to manually put an error message, use `Http404`
+
+##### Info: this shortcut function `get_objects_or_404` can get or raise error for us
+So modify `details` method as:
+```python
+# polls/views.py
+
+from django.shortcuts import get_object_or_404, render
+from .models import Question
+# ...
+def detail(request, question_id):
+  question = get_object_or_404(Question, pk=question_id)
+  return render(request, 'polls/detail.html', {'question': question})
+```
+
+modify `/polls/detail.html`
+```html
+<!--polls/templates/polls/detail.html-->
+
+<h1>{{ question.question_text }}</h1>
+<ul>
+  {% for choice in question.choice_set.all %}
+    <li>{{ choice.choice_text }}</li>
+  {% endfor %}
+</ul>
+```
+- the template system uses dot-lookup syntax to access variable attributes
+  - in the example `{{ question.question_text }}`
+    - django does a dictionary lookup which fails
+    - so it loops up attribute
+    - should last fail, it would try `list-index` lookup
+
+#### Remove hard coded urls
+##### Info: url should look like: `{% url 'detail' question.id %}`, where is 'detail' is the name passed to `path()` in `polls.urls`
+
+change the following:
+```html
+<li><a href="/polls/{{ question.id }}">{{ question.question_text }}</a></li>
+```
+To:
+```html
+<li><a href="{% url 'detail' question.id %}">{{ question.question_text }}</a></li>
+```
+
+#### How to change url of polls `detail` view?
+
+change
+```python
+# the 'name' value as called by the {% url %} template tag
+path('<int:question_id>/', views.detail, name='detail'),
+```
+to
+```python
+# added the word 'specifics'
+path('specifics/<int:question_id>/', views.detail, name='detail'),
+```
+
+### Namespacing URL names
+##### Info: to avoid confusion: set `app_name` (for ex. `poll`) in `polls/urls.py` and access by `{% url 'polls:detail' question.id %}` in `polls/index.html`
+
+Lets do this insertion in `polls/urls.py`
+
+```python
+# polls/urls.py
+# ...
+app_name = 'polls'
+# ...
+```
+change:
+```html
+<!--polls/templates/polls/index.html-->
+<li><a href="{% url 'detail' question.id %}">{{ question.question_text }}</a></li>
+```
+to
+```html
+<!--polls/templates/polls/index.html-->
+<li><a href="{% url 'polls:detail' question.id %}">{{ question.question_text }}</a></li>
+```
+
