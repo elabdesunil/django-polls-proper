@@ -642,3 +642,6 @@ urlpatterns = [
 - `<int:question_id>/` is found, which calls detail()
   - it looks like:
     `detail(request=<HttpRequest object>, question_id=34)`
+
+
+New github feature `Ctrl+shift+k` to pull of command pallet, switch organization and search
