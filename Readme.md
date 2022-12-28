@@ -39,7 +39,10 @@
         - [Info: we can pass to `Model.objects.somefunct` something like `pub_date__year` to access year or functions that are part of its data\_type, `pub_date` for ex](#info-we-can-pass-to-modelobjectssomefunct-something-like-pub_date__year-to-access-year-or-functions-that-are-part-of-its-data_type-pub_date-for-ex)
         - [Info: we can access by `[Question Object]q.choice_set`, key being `_set`, because Django creates a set to hold the "other side" of a ForeignKey relation, which can be access by `choice_set`](#info-we-can-access-by-question-objectqchoice_set-key-being-_set-because-django-creates-a-set-to-hold-the-other-side-of-a-foreignkey-relation-which-can-be-access-by-choice_set)
     - [Django Admin](#django-admin)
-        - [Note: if you set `LANGUAGE_CODE`, the admin interface can be translated to available languages](#note-if-you-set-language_code-the-admin-interface-can-be-translated-to-available-languages)
+        - [Info: if you set `LANGUAGE_CODE`, the admin interface can be translated to available languages](#info-if-you-set-language_code-the-admin-interface-can-be-translated-to-available-languages)
+      - [Make the poll app modifiable in admin](#make-the-poll-app-modifiable-in-admin)
+        - [Info: To make `Question` model modifiable in django admin add to `polls/admin.py` \`admin.site.register(Questions) after necessary imports](#info-to-make-question-model-modifiable-in-django-admin-add-to-pollsadminpy-adminsiteregisterquestions-after-necessary-imports)
+      - [Some notes on Djnago Admin dashboard](#some-notes-on-djnago-admin-dashboard)
 
 
 ## [Part 1] Setup
@@ -538,6 +541,29 @@ Start development server
 python manage.py runserver
 ```
 
-##### Note: if you set `LANGUAGE_CODE`, the admin interface can be translated to available languages
+##### Info: if you set `LANGUAGE_CODE`, the admin interface can be translated to available languages
 
 After setting up the adming user, and accessing it the `poll` will not have displayed.
+
+
+#### Make the poll app modifiable in admin
+
+```py
+# polls/admin.py
+
+from django.contrib import admin
+
+from .models import Question
+
+admin.site.register(Question)
+```
+
+##### Info: To make `Question` model modifiable in django admin add to `polls/admin.py` `admin.site.register(Questions) after necessary imports
+
+
+#### Some notes on Djnago Admin dashboard
+- form is automatically generatted based on Question model
+- each `DateTimeField` gets free Javascript shortcuts:
+  - Dates get a "Today" shortcut and calendar popup
+  - times get a "Now" shortcut and a convenient poput that lists commonly entered times
+
