@@ -61,6 +61,15 @@
       - [How to change url of polls `detail` view?](#how-to-change-url-of-polls-detail-view)
     - [Namespacing URL names](#namespacing-url-names)
         - [Info: to avoid confusion: set `app_name` (for ex. `poll`) in `polls/urls.py` and access by `{% url 'polls:detail' question.id %}` in `polls/index.html`](#info-to-avoid-confusion-set-app_name-for-ex-poll-in-pollsurlspy-and-access-by--url-pollsdetail-questionid--in-pollsindexhtml)
+  - [\[Part 4\]](#part-4)
+    - [Replace the dummy contents from `polls/views.py vote()` by](#replace-the-dummy-contents-from-pollsviewspy-vote-by)
+        - [Info: always return a `HttpResponseRedirect` after succesfully dealing with POST data - solution to the `Back` button problem 😉](#info-always-return-a-httpresponseredirect-after-succesfully-dealing-with-post-data---solution-to-the-back-button-problem-)
+    - [Update the `polls/views results()` method](#update-the-pollsviews-results-method)
+    - [Finally add the template file `results.html` accordingly](#finally-add-the-template-file-resultshtml-accordingly)
+    - [Use Generic views: less code is better then](#use-generic-views-less-code-is-better-then)
+        - [Info: use generic views where possible from the start, but understand what to do if we need more flexibility](#info-use-generic-views-where-possible-from-the-start-but-understand-what-to-do-if-we-need-more-flexibility)
+      - [Amend URLconf](#amend-urlconf)
+      - [Amend Views](#amend-views)
 
 
 ## [Part 1] Setup
@@ -838,4 +847,165 @@ to
 <!--polls/templates/polls/index.html-->
 <li><a href="{% url 'polls:detail' question.id %}">{{ question.question_text }}</a></li>
 ```
+
+## [Part 4] 
+
+Add a form to the `detail.html`
+```html
+<!--polls/templates/polls/detail.html-->
+<form action="{% url 'polls:vote' question.id %}" method="post">
+{% csrf_token %}
+<fieldset>
+    <legend><h1>{{ question.question_text }}</h1></legend>
+    {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
+    {% for choice in question.choice_set.all %}
+        <input type="radio" name="choice" id="choice{{ forloop.counter }}" value="{{ choice.id }}">
+        <label for="choice{{ forloop.counter }}">{{ choice.choice_text }}</label><br>
+    {% endfor %}
+</fieldset>
+<input type="submit" value="Vote">
+</form>
+```
+
+- `value` of each button is choice's ID. Than `name` of each radio button is `choice`. 
+- the form's `action` is set to `{% url 'polls:vote' question.id %}`
+- `forloop.counter` countes how many times for tag has gone through its loop
+- cross Site Request Forgeries is taken care of by `{% csrf_token %}`.
+
+
+### Replace the dummy contents from `polls/views.py vote()` by
+
+```python
+# ...
+
+def vote(request, question_id):
+    question = get_object_or_404(Question, pk=question_id)
+    try:
+        selected_choice = question.choice_set.get(pk=request.POST['choice'])
+    except (KeyError, Choice.DoesNotExist):
+        # Redisplay the question voting form.
+        return render(request, 'polls/detail.html', {
+            'question': question,
+            'error_message': "You didn't select a choice.",
+        })
+    else:
+        selected_choice.votes += 1
+        selected_choice.save()
+        # Always return an HttpResponseRedirect after successfully dealing
+        # with POST data. This prevents data from being posted twice if a
+        # user hits the Back button.
+        return HttpResponseRedirect(reverse('polls:results', args=(question.id,)))
+```
+- request.POST
+  - is a dictionary-like object that lets us access submitted data by key name
+  - `request.POST['choice']` returns the ID of the selected choice as string
+  - return is always a string
+- `HttpResponseRedirect` takes a sigle argument, the url to redirect to
+- `reverse()`
+  - this functions helps avoid having to hard-code a url
+  - takes two arguments
+    - name of the view that we want to pass control to
+    - variable portion of the URL pattern that points to the view
+  - return looks like: `/polls/2/results/`
+- `request` is a [HttpRequest](https://docs.djangoproject.com/en/4.1/ref/request-response/#django.http.HttpRequest) object
+##### Info: always return a `HttpResponseRedirect` after succesfully dealing with POST data - solution to the `Back` button problem 😉
+
+### Update the `polls/views results()` method
+
+```python
+# ...
+
+def results(request, question_id):
+  question = get_object_or_404(Question, pk=question_id)
+  return render(request, 'polls/results.html', {'question': question })
+```
+Note: this is almost the same as `detail()` with the difference being the template name.
+
+### Finally add the template file `results.html` accordingly
+
+```html
+<!--polls/templates/polls/results.html-->
+<h1>{{ question.question_text}}</h1>
+
+<ul>
+{% for choice in question.choice_set.all %}
+  <li>{{ choice.choice_text }} -- {{ choice.votes }} vote{{ choice.votes|pluralize }}</li>
+{% endfor %}
+</ul>
+
+<a href=" {% url 'polls:detail' question.id %} ">Vote again? </a>
+```
+Note: there is an issue with the `vote()` function. If two users vote at the same time a problem might occur called [race condition](https://docs.djangoproject.com/en/4.1/ref/models/expressions/#avoiding-race-conditions-using-f)
+
+### Use Generic views: less code is better then
+steps taken here:
+- 1. convert the URLconf
+- 2. Delete some of the old, unneeded views
+- 3. Introduce new views based on Django's generic views
+
+##### Info: use generic views where possible from the start, but understand what to do if we need more flexibility
+
+#### Amend URLconf
+
+```python
+# polls/urls.py
+
+from django.urls import path
+from . import views
+
+app_name = 'polls'
+
+urlpatterns = [
+  path('', views.IndexView.as_view(), name="index"),
+  path('<int:pk>/', views.DetailView.as_view(), name="detail"),
+  path("<int:pk>/results/", views.ResultsView.as_view(), name="results"),
+  path('<int:question_id>/vote/', views.vote, name='vote')
+]
+```
+Note: the name of the matched pattern in the path strings of the second and third patterns has changed from `<question_id>` to `<pk>`.
+
+#### Amend Views
+
+replace the old `index`, `detail`, and `results` views
+```python
+# polls/views
+
+from django.http import HttpResponseRedirect
+from django.shortcuts import get_object_or_404, render
+from django.urls import reverse
+from django.views import generic
+
+from .models import Choice, Question
+
+class IndexView(generic.ListView):
+  template_name = 'polls/index.html'
+  context_object_name = 'latest_question_list'
+
+  def get_queryset(self):
+    return Question.objects.order_by('-pub_date')[:5]
+
+class DetailView(generic.DetailView):
+  model = Question
+  template_name = 'polls/detail.html'
+
+class ResultsView(generic.DetailView):
+  modal = Question
+  template_name = "polls/results.html"
+
+# ...
+```
+Here
+- those with `_name` are either template urls or the names by which they will be referred to in the template files
+- Each generic view needs to know what model it will be acting upon.
+  - `model` = `model_name`
+- `DetailView` generic view expects the primary key value to be captured form the URL  to be called `pk`, so `question_id` have been changed to `pk`
+- `DetailView` generic view uses a template called `<app name>/<modelname>_detail.html`.
+  - `template_name` attribute defines a specific name instead
+- `ListView` uses a default template called `<app name>/<model name>_list.html` template
+  - we use `template_name` to tell `ListView` to use our existing `polls/index.html` template
+- context
+  - `DetailView` generic view can use model `Question` to generate `question` variable automatically
+  - `ListView` would generate `question_list` automatically, but we want to override it
+    - `context_object_name` attribute  is used to given another variable instead
+    - `get_queryset()` helps generate the new list
 
