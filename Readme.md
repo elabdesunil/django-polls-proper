@@ -43,7 +43,7 @@
       - [Make the poll app modifiable in admin](#make-the-poll-app-modifiable-in-admin)
         - [Info: To make `Question` model modifiable in django admin add to `polls/admin.py` \`admin.site.register(Questions) after necessary imports](#info-to-make-question-model-modifiable-in-django-admin-add-to-pollsadminpy-adminsiteregisterquestions-after-necessary-imports)
       - [Some notes on Djnago Admin dashboard](#some-notes-on-djnago-admin-dashboard)
-  - [\[Part 2\] Views](#part-2-views)
+  - [\[Part 3\] Views](#part-3-views)
       - [Writing more views](#writing-more-views)
       - [How does this requesting work?](#how-does-this-requesting-work)
       - [The Proper View](#the-proper-view)
@@ -61,7 +61,7 @@
       - [How to change url of polls `detail` view?](#how-to-change-url-of-polls-detail-view)
     - [Namespacing URL names](#namespacing-url-names)
         - [Info: to avoid confusion: set `app_name` (for ex. `poll`) in `polls/urls.py` and access by `{% url 'polls:detail' question.id %}` in `polls/index.html`](#info-to-avoid-confusion-set-app_name-for-ex-poll-in-pollsurlspy-and-access-by--url-pollsdetail-questionid--in-pollsindexhtml)
-  - [\[Part 4\]](#part-4)
+  - [\[Part 4\] - Form Processing and Generic Views](#part-4---form-processing-and-generic-views)
     - [Replace the dummy contents from `polls/views.py vote()` by](#replace-the-dummy-contents-from-pollsviewspy-vote-by)
         - [Info: always return a `HttpResponseRedirect` after succesfully dealing with POST data - solution to the `Back` button problem 😉](#info-always-return-a-httpresponseredirect-after-succesfully-dealing-with-post-data---solution-to-the-back-button-problem-)
     - [Update the `polls/views results()` method](#update-the-pollsviews-results-method)
@@ -70,7 +70,22 @@
         - [Info: use generic views where possible from the start, but understand what to do if we need more flexibility](#info-use-generic-views-where-possible-from-the-start-but-understand-what-to-do-if-we-need-more-flexibility)
       - [Amend URLconf](#amend-urlconf)
       - [Amend Views](#amend-views)
-        - [Info: A weird problem: we need to add `queryset = Question.objects.all()` to the ResultsView to avoid erro that looks like](#info-a-weird-problem-we-need-to-add-queryset--questionobjectsall-to-the-resultsview-to-avoid-erro-that-looks-like)
+        - [Info: A weird problem: we need to add `queryset = Question.objects.all()` to the `ResultsView` to avoid error that looks like](#info-a-weird-problem-we-need-to-add-queryset--questionobjectsall-to-the-resultsview-to-avoid-error-that-looks-like)
+  - [\[Part 5\] Setting up automated tests for the app](#part-5-setting-up-automated-tests-for-the-app)
+    - [Automated Tests](#automated-tests)
+    - [Why Tests](#why-tests)
+      - [Save time](#save-time)
+      - [They often prevent problems from occurring](#they-often-prevent-problems-from-occurring)
+      - [More attractive](#more-attractive)
+      - [Teamwork](#teamwork)
+    - [Testing Strategies](#testing-strategies)
+    - [Writing our first test](#writing-our-first-test)
+      - [Identify a bug](#identify-a-bug)
+      - [Create the test](#create-the-test)
+      - [Running tests](#running-tests)
+      - [Fixing the bug](#fixing-the-bug)
+      - [More comprehensive tests](#more-comprehensive-tests)
+    - [Test a View](#test-a-view)
 
 
 ## [Part 1] Setup
@@ -595,7 +610,7 @@ admin.site.register(Question)
   - Dates get a "Today" shortcut and calendar popup
   - times get a "Now" shortcut and a convenient poput that lists commonly entered times
 
-## [Part 2] Views
+## [Part 3] Views
 A view is a "type" of web page in your Django application that generally serves as specific functions and has a specific template.
 
 A typical blog application could have:
@@ -849,7 +864,7 @@ to
 <li><a href="{% url 'polls:detail' question.id %}">{{ question.question_text }}</a></li>
 ```
 
-## [Part 4] 
+## [Part 4] - Form Processing and Generic Views
 
 Add a form to the `detail.html`
 ```html
@@ -1011,7 +1026,119 @@ Here
     - `context_object_name` attribute  is used to given another variable instead
     - `get_queryset()` helps generate the new list
 
-##### Info: A weird problem: we need to add `queryset = Question.objects.all()` to the ResultsView to avoid erro that looks like
+##### Info: A weird problem: we need to add `queryset = Question.objects.all()` to the `ResultsView` to avoid error that looks like
 ```
 C:\Python310\lib\site-packages\django\views\generic\detail.py", line 72, in get_queryset raise ImproperlyConfigured( django.core.exceptions.ImproperlyConfigured: ResultsView is missing a QuerySet. Define ResultsView.model, ResultsView.queryset, or override ResultsView.get_queryset().
 ```
+Extra info: `git diff starting-commit-sha ending-commit-sha myPatch. patch` can be used to create a git patch file
+
+## [Part 5] Setting up automated tests for the app
+
+### Automated Tests
+
+- Tests are routines that check the operation of the code
+- it can be appplied to
+  - tiny details
+  - overall operation of the software
+### Why Tests
+#### Save time
+- saves time for large applications
+
+#### They often prevent problems from occurring
+- it identifies the problem from inside and points us to it
+
+#### More attractive
+- code without tests is broken by design
+
+#### Teamwork
+- one programmer may not break another's codes if the tests are established beforehand
+
+### Testing Strategies
+- 1. `test-driven development` - some write tests before writing their code
+  - formalizes the problem in a Python test case
+- 2. write tests as each functionality is implemented
+
+### Writing our first test
+
+#### Identify a bug
+there is the bug in the code function: `was_published_recently()` method
+- it return true both when the date is within last 24 hour or in the future as well
+
+#### Create the test
+```python
+# polls/tests.py
+
+import datetime
+
+from django.test import TestCase
+from django.utils import timezone
+
+from .models import Question
+
+
+class QuestionModelTests(TestCase):
+
+    def test_was_published_recently_with_future_question(self):
+        """
+        was_published_recently() returns False for questions whose pub_date
+        is in the future.
+        """
+        time = timezone.now() + datetime.timedelta(days=30)
+        future_question = Question(pub_date=time)
+        self.assertIs(future_question.was_published_recently(), False)
+
+```
+
+#### Running tests
+
+```
+python manage.py test polls
+```
+- `manage.py test polls` looks for tests in the polls application
+- `django.test.TestCase` is found
+- a special database is created for the purpose of testing
+- it looks for test methods - ones that begin with `test`
+- a `Question` instance with a future `pub_date` is created
+- `self.assertIs` checks to see if the value returned is false
+
+#### Fixing the bug
+
+modify `was_published_recently`:
+```python
+# polls/models.py
+
+def was_published_recently(self):
+  now = timezone.now()
+  return now - datetime.timedelta(days=1) <= self.pub_date <= now
+
+```
+Bug is fixed, and with the test setup, we might be informed if there is any change that creates error in this function.
+
+#### More comprehensive tests
+
+```python
+
+#..
+# class
+  def test_was_published_recently_with_old_question(self):
+        """
+        was_published_recently() returns False for questions whose pub_date
+        is older than 1 day.
+        """
+        time = timezone.now() - datetime.timedelta(days=1, seconds=1)
+        old_question = Question(pub_date=time)
+        self.assertIs(old_question.was_published_recently(), False)
+
+    def test_was_published_recently_with_recent_question(self):
+        """
+        was_published_recently() returns True for questions whose pub_date
+        is within the last day.
+        """
+        time = timezone.now() - datetime.timedelta(hours=23, minutes=59, seconds=59)
+        recent_question = Question(pub_date=time)
+        self.assertIs(recent_question.was_published_recently(), True)
+
+```
+now we have 3 tests that confirm that `Question.was_published_recently()` returns sensible values for past, recent, and future questions.
+
+### Test a View
