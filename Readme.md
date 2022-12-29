@@ -70,6 +70,7 @@
         - [Info: use generic views where possible from the start, but understand what to do if we need more flexibility](#info-use-generic-views-where-possible-from-the-start-but-understand-what-to-do-if-we-need-more-flexibility)
       - [Amend URLconf](#amend-urlconf)
       - [Amend Views](#amend-views)
+        - [Info: A weird problem: we need to add `queryset = Question.objects.all()` to the ResultsView to avoid erro that looks like](#info-a-weird-problem-we-need-to-add-queryset--questionobjectsall-to-the-resultsview-to-avoid-erro-that-looks-like)
 
 
 ## [Part 1] Setup
@@ -991,6 +992,7 @@ class DetailView(generic.DetailView):
 class ResultsView(generic.DetailView):
   modal = Question
   template_name = "polls/results.html"
+  queryset = Question.objects.all()
 
 # ...
 ```
@@ -1009,3 +1011,7 @@ Here
     - `context_object_name` attribute  is used to given another variable instead
     - `get_queryset()` helps generate the new list
 
+##### Info: A weird problem: we need to add `queryset = Question.objects.all()` to the ResultsView to avoid erro that looks like
+```
+C:\Python310\lib\site-packages\django\views\generic\detail.py", line 72, in get_queryset raise ImproperlyConfigured( django.core.exceptions.ImproperlyConfigured: ResultsView is missing a QuerySet. Define ResultsView.model, ResultsView.queryset, or override ResultsView.get_queryset().
+```
