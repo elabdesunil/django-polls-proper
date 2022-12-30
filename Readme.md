@@ -95,6 +95,10 @@
         - [`Info`: `More tests is better`](#info-more-tests-is-better)
         - [`Info`: 3 rules for testing: 1. a separate `TestClass` for each model or view, 2. a separate method for each set of conditions, 3. test method names that describe their function](#info-3-rules-for-testing-1-a-separate-testclass-for-each-model-or-view-2-a-separate-method-for-each-set-of-conditions-3-test-method-names-that-describe-their-function)
       - [Further Testing](#further-testing)
+  - [\[Part 6\] Add support for static files: Stylesheet and Image](#part-6-add-support-for-static-files-stylesheet-and-image)
+    - [Customize the app's look and feel](#customize-the-apps-look-and-feel)
+    - [Adding a background-image](#adding-a-background-image)
+        - [`Info`: Always use `relative paths` to link static files between each other](#info-always-use-relative-paths-to-link-static-files-between-each-other)
 
 
 ## [Part 1] Setup
@@ -1427,3 +1431,58 @@ class ResultsDetailViewTests(TestCase):
 - `integration with coverage.py`
   - to spot untested parts of the application 
   - helps indentify fragile or even dead code.
+
+## [Part 6] Add support for static files: Stylesheet and Image
+
+- `django.contrib.staticfiles`
+  - collects static files form each of the applicatoin(or any specified places) into a single locatio that can easily be served in production
+
+### Customize the app's look and feel
+
+- `STATICFILES_FINDERS` setting contains a list of finders that know how to discover static files
+  - `AppDirectoriesFinder` - looks for a `static` subdirectory in each of `INSTALLED_APPS`
+
+create a file:
+`polls/static/polls/style.css`
+- this can be referred to as `polls/styles.css`, similar to how it is done for templates
+
+add to the `stylesheet`
+```css
+// polls/static/polls/style.css
+
+li a{
+  color: green
+}
+```
+Add to the top of `index.html`
+```html
+<!-- polls/templates/polls/index.html -->
+
+{% load static %}
+
+<link rel ="stylesheet" href="{% static 'polls/style.css'%}">
+```
+
+### Adding a background-image
+
+add an image titleed 'background.png' in the directory
+`polls/static/polls/images/background.png`
+
+add a reference to the image in the stylesheet `polls/static/polls/style.css`
+```css
+body {
+  background: white url("images/background.png") no-repeat;
+}
+```
+
+##### `Info`: Always use `relative paths` to link static files between each other
+  - this way we can change `STATIC_URL`(used by static templates to generate its URLs)
+    - without having to modify a bunch of paths in yoru static files as well
+
+More advance tutorial on
+- [how to set up static files](https://docs.djangoproject.com/en/4.1/howto/static-files/)
+- [static files reference ](https://docs.djangoproject.com/en/4.1/ref/contrib/staticfiles/)
+- [Deploying static files](https://docs.djangoproject.com/en/4.1/howto/static-files/deployment/)
+
+
+
