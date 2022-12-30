@@ -106,6 +106,13 @@
       - [Create a class for choice extending `admin.StackedInLine`](#create-a-class-for-choice-extending-adminstackedinline)
     - [Customize the admin change list](#customize-the-admin-change-list)
     - [Customize the admin look and feel](#customize-the-admin-look-and-feel)
+      - [Customize the project's templates](#customize-the-projects-templates)
+        - [`Info` - `DIRS` is a list of filesystem directories to check when loading DJango templates; it's a search path](#info---dirs-is-a-list-of-filesystem-directories-to-check-when-loading-django-templates-its-a-search-path)
+        - [`Info` - Django source files can be located by using `python -c "import django; print(django.__path__)"`](#info---django-source-files-can-be-located-by-using-python--c-import-django-printdjango__path__)
+        - [`Info` - Any of Django's default admin templates can be overrridden. To override a template, copy it to the `/templates/` directory where the `manage.py` is located](#info---any-of-djangos-default-admin-templates-can-be-overrridden-to-override-a-template-copy-it-to-the-templates-directory-where-the-managepy-is-located)
+      - [Customizing the application's templates](#customizing-the-applications-templates)
+      - [Customize the admin index page](#customize-the-admin-index-page)
+        - [LOL `in fact, if you’ve read every single word, you’ve read about 5% of the overall documentation`](#lol-in-fact-if-youve-read-every-single-word-youve-read-about-5-of-the-overall-documentation)
 
 
 ## [Part 1] Setup
@@ -1655,3 +1662,76 @@ By default, the page displays 100 items per page but that can be changed by usin
 
 ### Customize the admin look and feel
 
+- Django admin is powered by Django itself, and its interfaces use Django's own template system
+
+#### Customize the project's templates
+
+- create a `templates` directory in the project directory where the `manage.py` lives
+- Open your settings file `mysite/settings.py`, and add a `DIRS` option in the `TEMPLATES` setting:
+```python
+# mysite/settings.py
+
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [BASE_DIR / 'templates'], # this line got modified
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
+```
+##### `Info` - `DIRS` is a list of filesystem directories to check when loading DJango templates; it's a search path
+
+##### `Info` - Django source files can be located by using `python -c "import django; print(django.__path__)"`
+
+Now create a directory called `admin` inside `templates`, and copy the template `admin/base_site.html` from within the default Django admin template directory in the source code of Django itself (`django/contrib/admin/templates) into that directory.
+
+```html
+<!-- /templates/admin/base_site.html -->
+<!-- replace the default:_("content-here")-->
+{% extends "admin/base.html" %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block branding %}
+<h1 id="site-name"><a href="{% url 'admin:index' %}">Polls Administration</a></h1>
+{% endblock %}
+
+{% block nav-global %}{% endblock %}
+
+```
+- here we learnt to replace the original template
+- but in projects, we might use `django.contrib.admin.AdminSite.site_header` attribute to more easily make this particular customization
+
+##### `Info` - Any of Django's default admin templates can be overrridden. To override a template, copy it to the `/templates/` directory where the `manage.py` is located
+
+#### Customizing the application's templates
+IF the `DIRS` was empty by default, who does did Django find the default templates?
+- by setting `APP_DIRS` to `True`, Django automatically looks for `templates/` subdirectory within each package including `django.contrib.admin`which is also an application
+
+Not exactly sure but looks important
+```
+Our poll application is not very complex and doesn’t need custom admin templates. 
+But if it grew more sophisticated and required modification of Django’s standard 
+admin templates for some of its functionality, it would be more sensible to modify 
+the application’s templates, rather than those in the project. That way, you could 
+include the polls application in any new project and be assured that it would find 
+the custom templates it needed.
+```
+
+#### Customize the admin index page
+
+- by default, all apps in `INSTALLED_APPS` is displayed in alphabetical order.
+- the template to customize for this is `admin/index.html`
+  - it uses a template variable called `app_list`
+    - this variable contains every installed Django app
+      - but we can hard-code links to object-specific admin pages in whatever way you think is best
+
+##### LOL `in fact, if you’ve read every single word, you’ve read about 5% of the overall documentation`
