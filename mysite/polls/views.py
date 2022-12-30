@@ -35,7 +35,13 @@ class DetailView(generic.DetailView):
 class ResultsView(generic.DetailView):
     modal = Question
     template_name = 'polls/results.html'
-    queryset = Question.objects.all()
+    # queryset = Question.objects.all()
+
+    def get_queryset(self):
+        """
+        Excludes any questions that aren't published yet.
+        """
+        return Question.objects.filter(pub_date__lte=timezone.now())
 
 
 def vote(request, question_id):

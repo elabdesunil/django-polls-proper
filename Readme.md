@@ -90,6 +90,7 @@
       - [Improving the view](#improving-the-view)
       - [Testing the `ListView` view](#testing-the-listview-view)
       - [Testing the `DetailView` view](#testing-the-detailview-view)
+      - [Test for results view](#test-for-results-view)
       - [Ideas for more tests](#ideas-for-more-tests)
 
 
@@ -1333,6 +1334,8 @@ class DetailView(generic.DetailView):
 ```
 add the test cases
 ```python
+# polls/tests.py
+# ...
 class QuestionDetailViewTests(TestCase):
     def test_future_question(self):
         """
@@ -1355,14 +1358,56 @@ class QuestionDetailViewTests(TestCase):
         self.assertContains(response, past_question.question_text)
 ```
 
-#### Ideas for more tests
+#### Test for results view
 
-- 1. Add a similar `get_queryset` method to `ResultsView` and a new test class
-- 2. Test to check if `Question` with no `Choices` are published
+```python
+# polls/views.py
+
+# class ResultsView(self):
+    # ...
+    def get_queryset(self):
+            """
+            Excludes any questions that aren't published yet.
+            """
+            return Question.objects.filter(pub_date__lte=timezone.now())
+```
+
+
+```python
+# polls/tests.py
+
+class ResultsDetailViewTests(TestCase):
+    def test_future_question(self):
+        """
+        The results view of a question with a pub_date in the future
+        returns a 404 not found.
+        """
+        future_question = create_question(
+            question_text='Future question.', days=5)
+        url = reverse('polls:results', args=(future_question.id,))
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 404)
+
+    def test_past_question(self):
+        """
+        The detail view of a question with a pub_date in the past
+        displays the question's text.
+        """
+        past_question = create_question(
+            question_text='Past Question.', days=-5)
+        url = reverse('polls:results', args=(past_question.id,))
+        response = self.client.get(url)
+        self.assertContains(response, past_question.question_text)
+
+```
+
+#### Ideas for more tests
+- 1. Test to check if `Question` with no `Choices` are published
   - Test would create `Question` without any `Choice`
     - and test to see if it's not published
   - Test that would create `Question` with `Choice`s
     - and test if it's published
-- 3. More advanced test:
+- 2. More advanced test:
   - Admin users get to see the unpublished questions
   - not ordinary visitors
+
