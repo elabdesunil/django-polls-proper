@@ -27,7 +27,7 @@ media
 .Python
 build/
 develop-eggs/
-dist/
+# dist/
 downloads/
 eggs/
 .eggs/
@@ -38,7 +38,7 @@ sdist/
 var/
 wheels/
 share/python-wheels/
-*.egg-info/
+# *.egg-info/
 .installed.cfg
 *.egg
 MANIFEST
