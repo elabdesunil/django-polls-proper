@@ -86,6 +86,11 @@
       - [Fixing the bug](#fixing-the-bug)
       - [More comprehensive tests](#more-comprehensive-tests)
     - [Test a View](#test-a-view)
+      - [Django test client](#django-test-client)
+      - [Improving the view](#improving-the-view)
+      - [Testing the `ListView` view](#testing-the-listview-view)
+      - [Testing the `DetailView` view](#testing-the-detailview-view)
+      - [Ideas for more tests](#ideas-for-more-tests)
 
 
 ## [Part 1] Setup
@@ -1038,8 +1043,8 @@ Extra info: `git diff starting-commit-sha ending-commit-sha myPatch. patch` can 
 
 - Tests are routines that check the operation of the code
 - it can be appplied to
-  - tiny details
-  - overall operation of the software
+  - tiny details: like internal behavior such as `function` return
+  - overall operation of the software: like `Views`
 ### Why Tests
 #### Save time
 - saves time for large applications
@@ -1142,3 +1147,222 @@ Bug is fixed, and with the test setup, we might be informed if there is any chan
 now we have 3 tests that confirm that `Question.was_published_recently()` returns sensible values for past, recent, and future questions.
 
 ### Test a View
+
+- So far, our application still doesn't discriminate where the `pub_date` while posting to the db.
+
+#### Django test client
+
+- a test `Client` can simulate a user interacting with the code at the view level
+
+Start with `shell`
+```
+python manage.py shell
+```
+
+```python
+from django.test.utils import setup_test_environment
+setup_test_environment()
+
+
+from django.test import Client
+
+client = Client()
+
+# get a response from '/'
+response = client.get('/')
+# Not found: /
+# we should expect a 404 from the address
+
+>>> response.status_code
+404
+>>> # on the other hand we should expect to find something at '/polls/'
+>>> # we'll use 'reverse()' rather than a hardcoded URL
+>>> from django.urls import reverse
+>>> response = client.get(reverse('polls:index'))
+>>> response.status_code
+200
+>>> response.content
+b'\n    <ul>\n    \n        <li><a href="/polls/1/">What&#x27;s up?</a></li>\n    \n    </ul>\n\n'
+>>> response.context['latest_question_list']
+<QuerySet [<Question: What's up?>]>
+
+```
+if the error is: "Invalit HTTP_HOST header" error and a 400 response, `setup_test_environment` call might be missing
+
+
+#### Improving the view
+
+
+change previous `IndexView` from
+```python
+# polls/views.py
+
+class IndexView(generic.ListView):
+  template_name = 'polls/index.html'
+  context_object_name = 'latest_question_list'
+
+  def get_queryset(self):
+    """ Return the last five published questions. """
+    return Quetsion.objects.order_by('-pub_date'):[:5]
+```
+to
+```python
+# polls/vies.py
+
+from django.utils import timezone
+
+# ...
+
+def get_queryset(self):
+    """
+    Return the last five published questions (not including those set to be
+    published in the future).
+    """
+    return Question.objects.filter(
+        pub_date__lte=timezone.now()
+    ).order_by('-pub_date')[:5]
+```
+
+#### Testing the `ListView` view
+
+```python
+# polls/tests.py
+
+from django.urls import reverse
+
+# shortcut function to create questions as well as a new test class:
+def create_question(question_text, days):
+    """
+    Create a question with the given `question_text` and published the
+    given number of `days` offset to now (negative for questions published
+    in the past, positive for questions that have yet to be published).
+    """
+    time = timezone.now() + datetime.timedelta(days=days)
+    return Question.objects.create(question_text=question_text, pub_date=time)
+
+# finally the class that tests the views
+class QuestionIndexViewTests(TestCase):
+    def test_no_questions(self):
+        """
+        If no questions exist, an appropriate message is displayed.
+        """
+        response = self.client.get(reverse('polls:index'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "No polls are available.")
+        self.assertQuerysetEqual(response.context['latest_question_list'], [])
+
+    def test_past_question(self):
+        """
+        Questions with a pub_date in the past are displayed on the
+        index page.
+        """
+        question = create_question(question_text="Past question.", days=-30)
+        response = self.client.get(reverse('polls:index'))
+        self.assertQuerysetEqual(
+            response.context['latest_question_list'],
+            [question],
+        )
+
+    def test_future_question(self):
+        """
+        Questions with a pub_date in the future aren't displayed on
+        the index page.
+        """
+        create_question(question_text="Future question.", days=30)
+        response = self.client.get(reverse('polls:index'))
+        self.assertContains(response, "No polls are available.")
+        self.assertQuerysetEqual(response.context['latest_question_list'], [])
+
+    def test_future_question_and_past_question(self):
+        """
+        Even if both past and future questions exist, only past questions
+        are displayed.
+        """
+        question = create_question(question_text="Past question.", days=-30)
+        create_question(question_text="Future question.", days=30)
+        response = self.client.get(reverse('polls:index'))
+        self.assertQuerysetEqual(
+            response.context['latest_question_list'],
+            [question],
+        )
+
+    def test_two_past_questions(self):
+        """
+        The questions index page may display multiple questions.
+        """
+        question1 = create_question(question_text="Past question 1.", days=-30)
+        question2 = create_question(question_text="Past question 2.", days=-5)
+        response = self.client.get(reverse('polls:index'))
+        self.assertQuerysetEqual(
+            response.context['latest_question_list'],
+            [question2, question1],
+        )
+```
+Note: an weird error occurred:
+```
+AssertionError: False is not true : Couldn't find 'No polls are available.' in response
+```
+I had missed `.` at the end. Adding it should fix it.
+```html
+<!-- ... --->
+{% else %}
+  <p>No polls are available.</p>
+<!-- ... -->
+```
+- 1. `create_question` takes some reptition out
+- 2. rest are pretty self explanatory
+
+In the word frm the docs
+```
+... we are using tests to tell a story of admin input and user experience on the site, and checking that at every state and for every new change in the state of the system, the expected results are published.
+```
+
+#### Testing the `DetailView` view
+
+lets add a constraint such that users cant access the detail view of a question with published date in the future.
+```python
+# polls/views.py
+
+class DetailView(generic.DetailView):
+  # ...
+  def get_queryset(self):
+    """
+    Excludes any questions that aren't published yet.
+    """
+    return Question.objects.filter(pub_date__lte=timezone.now())
+```
+add the test cases
+```python
+class QuestionDetailViewTests(TestCase):
+    def test_future_question(self):
+        """
+        The detail view of a question with a pub_date in the future
+        returns a 404 not found.
+        """
+        future_question = create_question(question_text='Future question.', days=5)
+        url = reverse('polls:detail', args=(future_question.id,))
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 404)
+
+    def test_past_question(self):
+        """
+        The detail view of a question with a pub_date in the past
+        displays the question's text.
+        """
+        past_question = create_question(question_text='Past Question.', days=-5)
+        url = reverse('polls:detail', args=(past_question.id,))
+        response = self.client.get(url)
+        self.assertContains(response, past_question.question_text)
+```
+
+#### Ideas for more tests
+
+- 1. add a similar `get_queryset` method to `ResultsView` and a new test class
+- 2. test to check if `Question` with no `Choices` are published
+  - test would create `Question` without any `Choice`
+    - and test to see if it's not published
+  - test that would create `Question` with `Choice`s
+    - and test if it's published
+- 3. More advanced test:
+  - Admin users get to see the unpublished questions
+  - not ordinary visitors
