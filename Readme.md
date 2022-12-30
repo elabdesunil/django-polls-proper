@@ -1357,11 +1357,11 @@ class QuestionDetailViewTests(TestCase):
 
 #### Ideas for more tests
 
-- 1. add a similar `get_queryset` method to `ResultsView` and a new test class
-- 2. test to check if `Question` with no `Choices` are published
-  - test would create `Question` without any `Choice`
+- 1. Add a similar `get_queryset` method to `ResultsView` and a new test class
+- 2. Test to check if `Question` with no `Choices` are published
+  - Test would create `Question` without any `Choice`
     - and test to see if it's not published
-  - test that would create `Question` with `Choice`s
+  - Test that would create `Question` with `Choice`s
     - and test if it's published
 - 3. More advanced test:
   - Admin users get to see the unpublished questions
