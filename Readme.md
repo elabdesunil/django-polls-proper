@@ -90,8 +90,11 @@
       - [Improving the view](#improving-the-view)
       - [Testing the `ListView` view](#testing-the-listview-view)
       - [Testing the `DetailView` view](#testing-the-detailview-view)
-      - [Test for results view](#test-for-results-view)
+      - [Test for `ResultsView` view](#test-for-resultsview-view)
       - [Ideas for more tests](#ideas-for-more-tests)
+        - [`Info`: `More tests is better`](#info-more-tests-is-better)
+        - [`Info`: 3 rules for testing: 1. a separate `TestClass` for each model or view, 2. a separate method for each set of conditions, 3. test method names that describe their function](#info-3-rules-for-testing-1-a-separate-testclass-for-each-model-or-view-2-a-separate-method-for-each-set-of-conditions-3-test-method-names-that-describe-their-function)
+      - [Further Testing](#further-testing)
 
 
 ## [Part 1] Setup
@@ -1358,7 +1361,7 @@ class QuestionDetailViewTests(TestCase):
         self.assertContains(response, past_question.question_text)
 ```
 
-#### Test for results view
+#### Test for `ResultsView` view
 
 ```python
 # polls/views.py
@@ -1411,3 +1414,16 @@ class ResultsDetailViewTests(TestCase):
   - Admin users get to see the unpublished questions
   - not ordinary visitors
 
+##### `Info`: `More tests is better`
+##### `Info`: 3 rules for testing: 1. a separate `TestClass` for each model or view, 2. a separate method for each set of conditions, 3. test method names that describe their function
+
+
+#### Further Testing
+
+- `Selenium` to test the way HTML actually renders a browser
+  - `LiveServerTestCase` in Django can facilitate it
+- test may bet better run with every commit, a development principle known as:
+  - `continuous integration`
+- `integration with coverage.py`
+  - to spot untested parts of the application 
+  - helps indentify fragile or even dead code.
