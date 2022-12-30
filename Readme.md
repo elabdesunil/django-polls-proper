@@ -1,7 +1,11 @@
-# The first Django App again
+# The first Django App again - Polls
 
 
-- [The first Django App again](#the-first-django-app-again)
+This full text is the 5% of the total django documentation. It covers the beginner friendly
+guide to build the first django app that. This guide was broken into 7 parts. The same has been done with this readme Django manual that I created for myself.
+
+
+- [The first Django App again - Polls](#the-first-django-app-again---polls)
   - [\[Part 1\] Setup](#part-1-setup)
       - [Create virtual environment](#create-virtual-environment)
       - [Start the development server](#start-the-development-server)
