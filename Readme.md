@@ -99,6 +99,13 @@
     - [Customize the app's look and feel](#customize-the-apps-look-and-feel)
     - [Adding a background-image](#adding-a-background-image)
         - [`Info`: Always use `relative paths` to link static files between each other](#info-always-use-relative-paths-to-link-static-files-between-each-other)
+  - [\[Part 7\] Customizing the automatically-generated admin site](#part-7-customizing-the-automatically-generated-admin-site)
+        - [`Info` - create a `ModelAmin` class and pass it to `register("here", [])` to change admin options for a model](#info---create-a-modelamin-class-and-pass-it-to-registerhere--to-change-admin-options-for-a-model)
+      - [Separate the fields to different sections where necessary](#separate-the-fields-to-different-sections-where-necessary)
+    - [Add the related objects](#add-the-related-objects)
+      - [Create a class for choice extending `admin.StackedInLine`](#create-a-class-for-choice-extending-adminstackedinline)
+    - [Customize the admin change list](#customize-the-admin-change-list)
+    - [Customize the admin look and feel](#customize-the-admin-look-and-feel)
 
 
 ## [Part 1] Setup
@@ -1485,4 +1492,166 @@ More advance tutorial on
 - [Deploying static files](https://docs.djangoproject.com/en/4.1/howto/static-files/deployment/)
 
 
+## [Part 7] Customizing the automatically-generated admin site
+
+The appearance of the fields can be reordered
+```python
+# polls/admin.py
+
+from django.contrib import admin
+
+from .models import Question
+
+
+class QuestionAdmin(admin.ModelAdmin):
+    fields = ['pub_date', 'question_text']
+
+admin.site.register(Question, QuestionAdmin)
+```
+##### `Info` - create a `ModelAmin` class and pass it to `register("here", [])` to change admin options for a model
+
+#### Separate the fields to different sections where necessary
+```python
+# polls/admin.py
+
+from django.contrib import admin
+
+from .models import Question
+
+
+class QuestionAdmin(admin.ModelAdmin):
+    fieldsets = [
+        (None,               {'fields': ['question_text']}),
+        ('Date information', {'fields': ['pub_date']}),
+    ]
+
+admin.site.register(Question, QuestionAdmin)
+```
+
+### Add the related objects
+
+There are two ways to add related objects
+
+first is to just register the `Choice` model in admin
+like
+```python
+from django.contrib import admin
+
+from .models import Choice, Question
+# ...
+admin.site.register(Choice)
+```
+but the problem is Choice with appear separately from the question, which a dropbox for to select questions for each field.
+
+Hence, there is the other method
+
+#### Create a class for choice extending `admin.StackedInLine` 
+```python
+# polls/admin.py
+
+from django.contrib import admin
+
+from .models import Choice, Question
+
+
+class ChoiceInline(admin.StackedInline):
+    model = Choice
+    extra = 3
+
+
+class QuestionAdmin(admin.ModelAdmin):
+    fieldsets = [
+        (None,               {'fields': ['question_text']}),
+        ('Date information', {'fields': ['pub_date'], 'classes': ['collapse']}),
+    ]
+    inlines = [ChoiceInline]
+
+admin.site.register(Question, QuestionAdmin)
+```
+- `extra` adds 3 extra slots for related Choices
+
+There is a problem with the choices taking a lot of space `StackedInLin` being the culprit. 
+To fix it: change it to `TabularInLine`
+```python
+# polls/admin.py
+class ChoiceInLine(admin.TabularInLine):
+  # ...
+```
+
+### Customize the admin change list
+
+by default only `__str___` is displayed in the list of questions,
+
+lets change the question list display page in admin
+
+```python
+# polls/admin.py
+
+class QuestionAdmin(admin.ModelAdmin):
+    # ...
+    list_display = ('question_text', 'pub_date')
+```
+Add another section `was_published_recently()`:
+```python
+
+class QuestionAdmin(admin.ModelAdmin):
+    # ...
+    list_display = ('question_text', 'pub_date', 'was_published_recently')
+```
+here, we should be able to click the column headers to sort by values in the columns
+Note: underscores got replaced by spaces for `was_published_recently`
+However, this can be changed by adding the following: 
+```python
+# polls/models.py
+
+from django.contrib import admin
+
+class Question(models.Model):
+    # ...
+    @admin.display(
+        boolean=True,
+        ordering='pub_date',
+        description='Published recently?',
+    )
+    def was_published_recently(self):
+        now = timezone.now()
+        return now - datetime.timedelta(days=1) <= self.pub_date <= now
+```
+more inforation of this [decorator here](https://docs.djangoproject.com/en/4.1/ref/contrib/admin/#django.contrib.admin.ModelAdmin.list_display)
+
+at a filter to the list display by adding
+```python
+# polls/admin.py
+# ...
+# class QuestionAdmin():
+  list_filter = ['pub_date']
+  # ...
+```
+
+Depending on the type of filed provide, django knows how to give the filter
+- `pub_date` as a `DateTimeField`is given
+  - "Any date", "Today", "Past 7days" etc
+
+To add search capability do
+```python
+# polls/admin.py
+
+# class QuestionAdmin():
+  search_fields = ['question_text']
+```
+This adds a search box to the top of the change list. When somebody enters search terms, Django will serach the `question_text` field. 
+- other fields can be added, but it is better to limit to a few since it uses
+  - `LIKE` query behind the scenes
+
+By default, the page displays 100 items per page but that can be changed by using `list_per_page` like
+```python
+# polls/admin.py
+
+# class QuestionAdmin():
+  list_per_page = 1
+
+```
+
+
+### Customize the admin look and feel
 
